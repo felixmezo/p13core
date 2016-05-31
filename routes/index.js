@@ -37,19 +37,22 @@ router.get('/users/:userId(\\d+)/edit', sessionController.loginRequired, session
 router.put('/users/:userId(\\d+)',      sessionController.loginRequired, sessionController.adminOrMyselfRequired, userController.update);   // actualizar información de cuenta
 router.delete('/users/:userId(\\d+)',   sessionController.loginRequired, sessionController.adminAndNotMyselfRequired, userController.destroy);  // borrar cuenta
 
-// Definición de rutas de /quizzes
-router.get('/quizzes',                     	quizController.index);
-router.get('/quizzes/:quizId(\\d+)',       	quizController.show);
-router.get('/quizzes/:quizId(\\d+)/check', 	quizController.check);
-router.get('/quizzes/new',                 	sessionController.loginRequired, quizController.new);
-router.post('/quizzes',                    	sessionController.loginRequired, quizController.create);
-router.get('/quizzes/:quizId(\\d+)/edit',  	sessionController.loginRequired, quizController.ownershipRequired, quizController.edit);
-router.put('/quizzes/:quizId(\\d+)',       	sessionController.loginRequired, quizController.ownershipRequired, quizController.update);
-router.delete('/quizzes/:quizId(\\d+)',    	sessionController.loginRequired, quizController.ownershipRequired, quizController.destroy);
+// Definición de rutas de quizzes
+router.get('/quizzes/:quizId(\\d+).:format?',       userController.indexReturn, quizController.show);
+router.get('/quizzes/:quizId(\\d+)/check', 			quizController.check);
+router.get('/quizzes.:format?',            			quizController.index);
+router.get('/quizzes/new',                 			sessionController.loginRequired, quizController.new);
+router.post('/quizzes',                    			sessionController.loginRequired, upload.single('image'), quizController.create);
+router.get('/quizzes/:quizId(\\d+)/edit',  			sessionController.loginRequired, quizController.ownershipRequired, quizController.edit);
+router.put('/quizzes/:quizId(\\d+)',       			sessionController.loginRequired, upload.single('image'), quizController.ownershipRequired, quizController.update);
+router.delete('/quizzes/:quizId(\\d+)',    			sessionController.loginRequired, quizController.ownershipRequired, quizController.destroy);
+
 // Definición de rutas de comentarios
 router.get('/quizzes/:quizId(\\d+)/comments/new',  sessionController.loginRequired, commentController.new);
 router.post('/quizzes/:quizId(\\d+)/comments',     sessionController.loginRequired, commentController.create);
 router.put('/quizzes/:quizId(\\d+)/comments/:commentId(\\d+)/accept', sessionController.loginRequired, quizController.ownershipRequired, commentController.accept);
+
+// Ruta de créditos
 router.get('/author',				quizController.author);
 
 module.exports = router;

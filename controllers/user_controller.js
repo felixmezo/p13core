@@ -27,6 +27,14 @@ exports.index = function(req, res, next) {
         .catch(function(error) { next(error); });
 };
 
+exports.indexReturn = function(req, res, next) {
+    models.User.findAll({order: ['username']})
+        .then(function(users) {
+            req.users = users ;
+            next();
+        })
+        .catch(function(error) { next(error); });
+};
 
 // GET /users/:id
 exports.show = function(req, res, next) {
@@ -61,7 +69,7 @@ exports.create = function(req, res, next) {
                 return user.save({fields: ["username", "password", "salt"]})
                     .then(function(user) { // Renderizar pagina de usuarios
                         req.flash('success', 'Usuario creado con éxito.');
-                        res.redirect('/session'); // Redireccion a pagina de login
+                        res.redirect('/session');
                     })
                     .catch(Sequelize.ValidationError, function(error) {
                         req.flash('error', 'Errores en el formulario:');
@@ -87,16 +95,10 @@ exports.edit = function(req, res, next) {
 // PUT /users/:id
 exports.update = function(req, res, next) {
 
-    // req.user.username  = req.body.user.username; // No se permite su edicion
+    req.user.username  = req.body.user.username;
     req.user.password  = req.body.user.password;
 
-    // El password no puede estar vacio
-    if ( ! req.body.user.password) { 
-        req.flash('error', "El campo Password debe rellenarse.");
-        return res.render('users/edit', {user: req.user});
-    }
-
-    req.user.save({fields: ["password", "salt"]})
+    req.user.save({fields: ["username", "password", "salt"]})
         .then(function(user) {
             req.flash('success', 'Usuario actualizado con éxito.');
             res.redirect('/users');  // Redirección HTTP a /
@@ -114,7 +116,6 @@ exports.update = function(req, res, next) {
             next(error);
         });
 };
-
 
 // DELETE /users/:id
 exports.destroy = function(req, res, next) {

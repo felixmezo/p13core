@@ -30,7 +30,6 @@ if (app.get('env') === 'production') {
     });
 }
 
-
 // uncomment after placing your favicon in /public
 app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 app.use(logger('dev'));
@@ -45,14 +44,23 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(partials());
 app.use(flash());
+//Hace visible req.session en las vistas
+app.use(function(req,res,next){
+  res.locals.session=req.session;
+  next();
+});
 
-// Helper dinamico:
-app.use(function(req, res, next) {
-
-   // Hacer visible req.session en las vistas
-   res.locals.session = req.session;
-
-   next();
+//Comprueba si hay un usuario logeado y si han pasado mas de dos minutos hace logout
+app.use(function(req,res,next) {
+  if (req.session.user) {
+    if (req.session.user.expires>Date.now()){
+      req.session.user.expires=Date.now()+120000;
+    }
+    else{
+      delete req.session.user;
+    }
+  }
+  next();
 });
 
 app.use('/', routes);

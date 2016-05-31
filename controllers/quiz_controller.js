@@ -6,9 +6,7 @@ var fs = require('fs');
 
 // Opciones para imagenes subidas a Cloudinary
 var cloudinary_image_options = { crop: 'limit', width: 200, height: 200, radius: 5, 
-                                 border: "3px_solid_blue", tags: ['core', 'quiz-2016'] };
-
-
+                                 border: "3px_solid_blue", tags: ['core', 'felixmezo'] };
 
 // Autoload el quiz asociado a :quizId
 exports.load = function(req, res, next, quizId) {
@@ -39,50 +37,50 @@ exports.ownershipRequired = function(req, res, next){
     }
 };
 
-// GET /quizzes
+// GET /index
 exports.index = function(req, res, next) {
-  if(req.params.format==="json"){
-    models.Quiz.findAll()
-    .then(function(quizzes) {
-      res.send(JSON.stringify(quizzes));
+    var tipo = req.params.format;
+  if (tipo == "json") {
+    models.Quiz.findAll().then(function (quizzes) {
+      res.send("<html><head></head><body>"+JSON.stringify(quizzes)+"</body></html>");
     })
-    .catch(function(error) {
-      next(error);
-    });
-  }
-  else{
+  } else {
     if(req.query.search){
-      var sep = req.query.search.split(" ");
-      var busqueda = sep.join("%");
-      models.Quiz.findAll({where: ["question like ?", '%'+busqueda+'%' ], 
-                order: '"question" ASC'})
-      .then(function(quizzes){
-        quizzes = quizzes.sort();
+      models.Quiz.findAll({ where: ["question like ?",'%' + req.query.search + '%']})
+        .then(models.Quiz.findAll({ order: ['question']}))
+            .then(function(quizzes) {
+              res.render('quizzes/index.ejs', { quizzes: quizzes});
+            })
+        .catch(function(error) {
+          next(error);
+        });
+    } else {
+      models.Quiz.findAll({ include: [ models.Attachment ] }).then(function(quizzes){
         res.render('quizzes/index.ejs', {quizzes: quizzes});
-      });
+      }).catch(function(error){ next(error)});    
     }
-    else{
-      models.Quiz.findAll({ include: [models.Attachment ]})
-     .then(function(quizzes) {
-       res.render('quizzes/index.ejs', {quizzes: quizzes});
-      })
-     .catch(function(error) {
-        next(error); 
-      });
-    }
-  }  
+  }
 };
 
 
-// GET /quizzes/:id
+// GET /question
 exports.show = function(req, res, next) {
-  if(req.params.format==="json"){
-    res.send(JSON.stringify(req.quiz));
-  }
-  else{
-    var answer = req.query.answer || '';
-    res.render('quizzes/show', {quiz: req.quiz,
-                                answer: answer});
+  if (req.params.format == "json") {
+    res.send("<html><head></head><body>"+JSON.stringify(req.quiz)+"</body></html>");
+  } else {
+    models.User.findById(req.quiz.AuthorId)
+        .then(function(user) { 
+          var autor;
+          if(user)
+            autor = user.username;
+          else autor = "Usuario no encontrado";
+          var answer = req.query.answer || "";
+          res.render('quizzes/show', {quiz: req.quiz, 
+                                      answer: answer, 
+                                      autor: autor, 
+                                      users: req.users
+                                      });    
+        });
   }
 };
 
@@ -95,8 +93,8 @@ exports.check = function(req, res, next) {
   var result = answer === req.quiz.answer ? 'Correcta' : 'Incorrecta';
 
   res.render('quizzes/result', { quiz: req.quiz, 
-                   result: result, 
-                   answer: answer });
+                                 result: result, 
+                                 answer: answer });
 };
 
 
@@ -106,15 +104,16 @@ exports.new = function(req, res, next) {
   res.render('quizzes/new', {quiz: quiz});
 };
 
-// POST /quizzes/create
-exports.create = function(req, res, next) {
+exports.create = function(req,res,next){
 
-    var authorId = req.session.user && req.session.user.id || 0;
-    var quiz = { question: req.body.question, 
-                 answer:   req.body.answer,
+  var authorId = req.session.user && req.session.user.id || 0;
+
+
+   var quiz = { question: req.body.quiz.question, 
+                 answer:   req.body.quiz.answer,
                  AuthorId: authorId };
 
-    // Guarda en la tabla Quizzes el nuevo quiz.
+      // Guarda en la tabla Quizzes el nuevo quiz.
     models.Quiz.create(quiz)
     .then(function(quiz) {
         req.flash('success', 'Pregunta y Respuesta guardadas con éxito.');
@@ -133,20 +132,21 @@ exports.create = function(req, res, next) {
     })
     .then(function() {
         res.redirect('/quizzes');
-    })
-    .catch(Sequelize.ValidationError, function(error) {
-        req.flash('error', 'Errores en el formulario:');
-        for (var i in error.errors) {
-            req.flash('error', error.errors[i].value);
-        };
-        res.render('quizzes/new', {quiz: quiz});
-    })
-    .catch(function(error) {
-        req.flash('error', 'Error al crear un Quiz: '+error.message);
-        next(error);
-    }); 
-};
+    }).catch(Sequelize.ValidationError, function(error){
 
+    req.flash('error', 'Errores en el formulario:');
+    for (var i in error.errors) {
+      req.flash('error',error.errors[i].value);
+    };
+    res.render('quizzes/new', {quiz: quiz});
+
+  }).catch(function (error) { 
+
+    req.flash('error', 'Error al crear un Quiz: ' +error.message);
+    next(error); 
+
+  })
+};
 // GET /quizzes/:id/edit
 exports.edit = function(req, res, next) {
   var quiz = req.quiz;  // req.quiz: autoload de instancia de quiz
@@ -155,11 +155,10 @@ exports.edit = function(req, res, next) {
 };
 
 
-// PUT /quizzes/:quizId
 exports.update = function(req, res, next) {
 
-  req.quiz.question = req.body.question;
-  req.quiz.answer   = req.body.answer;
+  req.quiz.question = req.body.quiz.question;
+  req.quiz.answer   = req.body.quiz.answer;
 
   req.quiz.save({fields: ["question", "answer"]})
     .then(function(quiz) {
@@ -201,7 +200,6 @@ exports.update = function(req, res, next) {
     });
 };
 
-
 // DELETE /quizzes/:quizId
 exports.destroy = function(req, res, next) {
 
@@ -216,7 +214,7 @@ exports.destroy = function(req, res, next) {
         res.redirect('/quizzes');
       })
       .catch(function(error){
-      req.flash('error', 'Error al editar el Quiz: '+error.message);
+      req.flash('error', 'Error al borrar el Quiz: '+error.message);
         next(error);
       });
 };
@@ -312,5 +310,3 @@ function uploadResourceToCloudinary(req) {
         );
     })
 }
-
-        
