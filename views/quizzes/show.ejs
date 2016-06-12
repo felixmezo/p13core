@@ -43,7 +43,7 @@
           <li> <%= comment.text %> 
           <% for (var j in users) { 
             if (users[j].id===comment.AuthorId) { %>
-              autor: <%= users[j].username %>
+              - autor: <%= users[j].username %>
             <% } %>
           <% } %>
           </li>
